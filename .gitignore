@@ -1,0 +1,7 @@
+.DS_Store
+/vendor/
+/storage/*
+!/storage/.gitkeep
+!/storage/next-day-runs/
+/storage/next-day-runs/*
+!/storage/next-day-runs/.gitkeep

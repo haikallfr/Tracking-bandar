@@ -1,0 +1,790 @@
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --bg: #edf2f6;
+    --panel: #ffffff;
+    --panel-soft: #f8fafc;
+    --ink: #16202a;
+    --soft: #5f6b76;
+    --line: #d8e0e8;
+    --teal: #0f766e;
+    --teal-soft: #ecfeff;
+    --slate: #1f2937;
+    --slate-soft: #475569;
+    --good: #047857;
+    --bad: #c2410c;
+    --shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.wrap {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 32px 20px 64px;
+}
+
+.hero {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.hero.centered {
+    justify-items: center;
+    text-align: center;
+}
+
+.title,
+h1 {
+    margin: 0;
+    line-height: 0.94;
+    letter-spacing: -0.04em;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.title {
+    font-size: clamp(2.2rem, 5vw, 4.8rem);
+    max-width: 14ch;
+}
+
+h1 {
+    font-size: clamp(2rem, 4.5vw, 4rem);
+}
+
+.lead {
+    max-width: 760px;
+    margin: 0;
+    color: var(--soft);
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.hero-actions,
+.actions,
+.toolbar,
+.searchbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.hero-actions,
+.actions {
+    flex-wrap: wrap;
+}
+
+.actions-toolbar {
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.actions-toolbar > .link,
+.actions-toolbar > .button,
+.actions-toolbar > button,
+.actions-toolbar > .nav-link,
+.actions-toolbar > .bookmarklet {
+    min-height: 62px;
+    padding-inline: 22px;
+    font-size: 0.98rem;
+}
+
+.icon-button {
+    min-width: 62px;
+    padding-inline: 16px;
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.actions-toolbar > .search-form {
+    flex: 1 1 560px;
+}
+
+.actions-toolbar .search-form input,
+.actions-toolbar .search-form select,
+.actions-toolbar .search-form button {
+    min-height: 62px;
+}
+
+.topbar,
+.stats,
+.grid,
+.list {
+    display: grid;
+    gap: 16px;
+}
+
+.topbar,
+.stats {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-bottom: 20px;
+}
+
+.grid {
+    grid-template-columns: 1fr;
+}
+
+.radar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+}
+
+.stat,
+.settings,
+.content,
+.panel,
+.item {
+    padding: 20px;
+}
+
+.panel {
+    margin-bottom: 20px;
+}
+
+.toolbar-card {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.eyebrow {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: var(--teal);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+}
+
+.stat strong {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 900;
+}
+
+.muted {
+    color: var(--soft);
+}
+
+form {
+    display: grid;
+    gap: 12px;
+}
+
+.search-form {
+    display: flex;
+    gap: 10px;
+    flex: 1 0 420px;
+    min-width: 420px;
+}
+
+.search-form input {
+    flex: 1;
+}
+
+.search-form select {
+    width: 176px;
+    flex: 0 0 176px;
+}
+
+label,
+.toolbar-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--soft);
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+input,
+textarea,
+select,
+button {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel-soft);
+    color: var(--ink);
+    padding: 12px 14px;
+    font: inherit;
+}
+
+textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+button,
+.button,
+.link,
+.nav-link,
+.bookmarklet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    border: none;
+    border-radius: 16px;
+    padding: 12px 16px;
+    text-decoration: none;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+button,
+.button {
+    background: var(--teal);
+}
+
+button.secondary,
+.button.secondary {
+    background: var(--slate-soft);
+}
+
+.link,
+.nav-link,
+.bookmarklet {
+    background: var(--slate);
+}
+
+button:disabled,
+.button:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.notice {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel-soft);
+    color: var(--soft);
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+.panel .notice {
+    margin-top: 18px;
+}
+
+.mini {
+    font-size: 0.86rem;
+}
+
+.status-good {
+    color: var(--good);
+}
+
+.status-bad {
+    color: var(--bad);
+}
+
+.searchbar {
+    margin-bottom: 16px;
+}
+
+.searchbar input {
+    flex: 1;
+}
+
+.searchbar button {
+    width: 180px;
+}
+
+.toolbar {
+    display: grid;
+    grid-template-columns: 1.2fr 0.72fr 1fr 1fr 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.date-nav {
+    display: flex;
+    gap: 10px;
+}
+
+.date-nav .icon-button {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.toolbar .shortcut-row {
+    padding: 0;
+}
+
+.shortcut-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.shortcut-btn {
+    width: auto;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel-soft);
+    color: var(--ink);
+    padding: 10px 14px;
+}
+
+.shortcut-btn.active {
+    background: var(--teal);
+    color: #fff;
+    border-color: transparent;
+}
+
+.symbol-card {
+    padding-top: 18px;
+}
+
+.symbol-card:first-child {
+    padding-top: 0;
+}
+
+.summary-card {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: #fff;
+}
+
+.summary-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--line);
+}
+
+.summary-title {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.summary-sub {
+    margin-top: 6px;
+    color: var(--soft);
+}
+
+.summary-dates {
+    display: grid;
+    grid-template-columns: 1fr 56px 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 20px 8px;
+}
+
+.date-box,
+.filter-box,
+.metric,
+.broker-block,
+.enrichment {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel-soft);
+}
+
+.date-box,
+.filter-box {
+    padding: 14px 16px;
+}
+
+.date-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.05rem;
+    color: var(--teal);
+}
+
+.date-arrow {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 1.8rem;
+}
+
+.summary-filters {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 0 20px 16px;
+}
+
+.filter-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #334155;
+    font-size: 0.98rem;
+}
+
+.summary-grid,
+.brokers-grid {
+    display: grid;
+    gap: 18px;
+}
+
+.summary-grid {
+    grid-template-columns: 1fr 1fr;
+    padding: 0 20px 20px;
+}
+
+.broker-lookup {
+    margin: 0 20px 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+}
+
+.broker-lookup-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 14px;
+}
+
+.broker-lookup-title {
+    margin: 0;
+    font-size: 1.12rem;
+}
+
+.broker-lookup-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    min-width: 320px;
+}
+
+.broker-lookup-form input {
+    flex: 1;
+    text-transform: uppercase;
+}
+
+.broker-focus-card {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr 1fr;
+    gap: 20px;
+    align-items: center;
+    padding: 18px 20px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel-soft);
+}
+
+.broker-focus-card + .broker-focus-meta {
+    margin-top: 10px;
+    margin-bottom: 12px;
+}
+
+.broker-focus-code {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #dc2626;
+}
+
+.broker-focus-card.buy .broker-focus-metric {
+    color: var(--good);
+}
+
+.broker-focus-card.sell .broker-focus-metric {
+    color: var(--bad);
+}
+
+.broker-focus-metric {
+    font-size: 1.8rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.broker-focus-meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    color: var(--soft);
+    font-size: 0.92rem;
+}
+
+.buy-badge {
+    background: rgba(4, 120, 87, 0.12);
+    color: var(--good);
+}
+
+.sell-badge {
+    background: rgba(194, 65, 12, 0.12);
+    color: var(--bad);
+}
+
+.brokers-grid {
+    grid-template-columns: 1fr 1fr;
+}
+
+.side-table {
+    min-width: 0;
+}
+
+.table-head,
+.table-row {
+    display: grid;
+    grid-template-columns: 54px 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.table-head {
+    padding: 10px 0 12px;
+    color: #334155;
+    border-bottom: 1px solid var(--line);
+    font-weight: 700;
+}
+
+.table-wrap {
+    max-height: 620px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.table-row {
+    padding: 12px 0;
+    font-size: 0.98rem;
+}
+
+.broker-code {
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.buy-color,
+.buy {
+    color: var(--good);
+}
+
+.sell-color,
+.sell {
+    color: var(--bad);
+}
+
+.type-color-asing {
+    color: #7c3aed;
+}
+
+.type-color-lokal {
+    color: #dc2626;
+}
+
+.type-color-pemerintah {
+    color: #15803d;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: var(--teal-soft);
+    color: var(--teal);
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+details.item {
+    height: 100%;
+}
+
+summary.item-summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+summary.item-summary::-webkit-details-marker {
+    display: none;
+}
+
+.item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.item-head h2 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 900;
+}
+
+.score {
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.summary-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.tap-hint {
+    font-size: 0.88rem;
+    color: var(--soft);
+}
+
+.item-body {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.metric,
+.broker-block,
+.enrichment {
+    padding: 12px;
+}
+
+.metric span {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--soft);
+    font-size: 0.84rem;
+}
+
+.reasons,
+.brokers {
+    margin-top: 14px;
+}
+
+.reasons ul,
+.brokers ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.broker-block h3 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+}
+
+.payload,
+.notice,
+.metric,
+.broker-block,
+.filter-box,
+.date-box,
+.shortcut-btn,
+input,
+select,
+textarea,
+button {
+    transition: all 0.18s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgba(15, 118, 110, 0.45);
+    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.08);
+    outline: none;
+}
+
+@media (max-width: 920px) {
+    .title,
+    h1 {
+        white-space: normal;
+    }
+
+    .searchbar,
+    .toolbar,
+    .summary-grid,
+    .summary-filters,
+    .summary-dates,
+    .brokers-grid,
+    .metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .search-form {
+        min-width: 320px;
+        flex-basis: 320px;
+    }
+
+    .search-form select {
+        width: 100%;
+        flex-basis: auto;
+    }
+
+    .searchbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .actions-toolbar > .search-form,
+    .search-form {
+        min-width: 100%;
+        flex-basis: 100%;
+    }
+
+    .searchbar button {
+        width: 100%;
+    }
+
+    .date-nav .icon-button {
+        min-width: 62px;
+    }
+
+    .broker-lookup-head,
+    .broker-lookup-form {
+        flex-direction: column;
+        align-items: stretch;
+        min-width: 100%;
+    }
+
+    .broker-focus-card {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+}
