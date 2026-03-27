@@ -132,6 +132,90 @@ final class StockbitClient
         ];
     }
 
+    public function fetchSymbolSnapshotsByDateBatch(
+        string $symbol,
+        array $dates,
+        array $baseFilters = [],
+        int $concurrency = 8,
+        int $maxRetries = 2
+    ): array {
+        if (!$this->hasToken()) {
+            throw new RuntimeException('Token Stockbit belum diisi.');
+        }
+
+        $symbol = strtoupper(trim($symbol));
+        $pending = array_values(array_unique(array_filter(array_map(
+            static fn ($date) => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date) ? (string) $date : '',
+            $dates
+        ))));
+
+        $items = [];
+        $errors = [];
+
+        for ($attempt = 1; $attempt <= $maxRetries && $pending !== []; $attempt++) {
+            $attemptErrors = [];
+            $client = $this->httpClient();
+            $requests = function () use ($pending, $baseFilters, $client, $symbol) {
+                foreach ($pending as $date) {
+                    $query = $this->buildQuery($baseFilters + [
+                        'from' => $date,
+                        'to' => $date,
+                    ]);
+
+                    yield $date => function () use ($client, $symbol, $query) {
+                        return $client->getAsync('/marketdetectors/' . rawurlencode($symbol), [
+                            'query' => $query,
+                            'http_errors' => false,
+                        ]);
+                    };
+                }
+            };
+
+            $pool = new Pool($client, $requests(), [
+                'concurrency' => $concurrency,
+                'fulfilled' => function (ResponseInterface $response, string $date) use (&$items, &$attemptErrors, $symbol): void {
+                    try {
+                        $items[$date] = [
+                            'symbol' => $symbol,
+                            'market_detector' => $this->decodeResponse(
+                                (string) $response->getBody(),
+                                $response->getStatusCode()
+                            ),
+                            'fetched_at' => gmdate(DATE_ATOM),
+                        ];
+                    } catch (Throwable $error) {
+                        $attemptErrors[$date] = $error->getMessage();
+                    }
+                },
+                'rejected' => function ($reason, string $date) use (&$attemptErrors): void {
+                    $attemptErrors[$date] = $reason instanceof Throwable
+                        ? $reason->getMessage()
+                        : 'Request async gagal.';
+                },
+            ]);
+
+            $pool->promise()->wait();
+
+            if ($attemptErrors === []) {
+                break;
+            }
+
+            if ($attempt < $maxRetries) {
+                $pending = array_keys($attemptErrors);
+                $backoffMs = (250 * (2 ** ($attempt - 1))) + random_int(150, 500);
+                usleep($backoffMs * 1000);
+                continue;
+            }
+
+            $errors = $attemptErrors;
+        }
+
+        return [
+            'items' => $items,
+            'errors' => $errors,
+        ];
+    }
+
     private function buildQuery(array $filters): array
     {
         $query = [];
@@ -187,12 +271,13 @@ final class StockbitClient
 
         $this->httpClient = new Client([
             'base_uri' => $this->baseUrl,
-            'timeout' => 30,
-            'connect_timeout' => 15,
+            'timeout' => 10,
+            'connect_timeout' => 8,
             'headers' => [
                 'Accept' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->token,
                 'User-Agent' => 'Mozilla/5.0 BrokerSummaryDashboard/1.0',
+                'Connection' => 'keep-alive',
             ],
         ]);
 

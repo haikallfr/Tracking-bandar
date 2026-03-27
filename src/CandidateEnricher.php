@@ -29,20 +29,27 @@ final class CandidateEnricher
             'investor_type' => 'INVESTOR_TYPE_ALL',
         ];
 
-        $collected = 0;
-        $cursor = new DateTimeImmutable('today', new DateTimeZone('Asia/Makassar'));
+        $candidateDates = $this->recentTradingDates(max($targetDays * 3, 30));
+        $saved = [];
 
-        while ($collected < $targetDays) {
-            $cursor = $cursor->modify('-1 day');
-            $weekday = (int) $cursor->format('N');
-            if ($weekday > 5) {
+        foreach (array_chunk($candidateDates, 12) as $dateChunk) {
+            if (count($saved) >= $targetDays) {
+                break;
+            }
+
+            try {
+                $batch = $this->client->fetchSymbolSnapshotsByDateBatch($symbol, $dateChunk, $filters, 8, 2);
+            } catch (Throwable) {
                 continue;
             }
 
-            $date = $cursor->format('Y-m-d');
+            $entries = [];
+            foreach ($dateChunk as $date) {
+                $payload = $batch['items'][$date] ?? null;
+                if (!is_array($payload)) {
+                    continue;
+                }
 
-            try {
-                $payload = $this->client->fetchSymbol($symbol, $filters + ['from' => $date, 'to' => $date]);
                 $data = $payload['market_detector']['data'] ?? [];
                 $marketValue = abs((float) ($data['bandar_detector']['value'] ?? 0));
                 $marketVolume = abs((float) ($data['bandar_detector']['volume'] ?? 0));
@@ -53,10 +60,23 @@ final class CandidateEnricher
                     continue;
                 }
 
-                $this->repository->saveDailySnapshot($symbol, $date, $payload, $marketValue, $marketVolume);
-                $collected++;
-            } catch (Throwable) {
-                continue;
+                $entries[] = [
+                    'symbol' => $symbol,
+                    'trade_date' => $date,
+                    'payload' => $payload,
+                    'market_value' => $marketValue,
+                    'market_volume' => $marketVolume,
+                    'updated_at' => $payload['fetched_at'] ?? gmdate(DATE_ATOM),
+                ];
+                $saved[] = $date;
+
+                if (count($saved) >= $targetDays) {
+                    break;
+                }
+            }
+
+            if ($entries !== []) {
+                $this->repository->saveDailySnapshotsBatch($entries);
             }
         }
     }
@@ -201,5 +221,22 @@ final class CandidateEnricher
         }
 
         return $sum;
+    }
+
+    private function recentTradingDates(int $limit): array
+    {
+        $dates = [];
+        $cursor = new DateTimeImmutable('today', new DateTimeZone('Asia/Makassar'));
+
+        while (count($dates) < $limit) {
+            $cursor = $cursor->modify('-1 day');
+            if ((int) $cursor->format('N') > 5) {
+                continue;
+            }
+
+            $dates[] = $cursor->format('Y-m-d');
+        }
+
+        return $dates;
     }
 }

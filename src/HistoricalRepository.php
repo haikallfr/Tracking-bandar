@@ -28,6 +28,41 @@ final class HistoricalRepository
         ]);
     }
 
+    public function saveDailySnapshotsBatch(array $entries): void
+    {
+        if ($entries === []) {
+            return;
+        }
+
+        $stmt = db()->prepare(
+            'INSERT INTO broker_daily_history(symbol, trade_date, payload, market_value, market_volume, updated_at)
+             VALUES (:symbol, :trade_date, :payload, :market_value, :market_volume, :updated_at)
+             ON CONFLICT(symbol, trade_date) DO UPDATE SET
+                payload = excluded.payload,
+                market_value = excluded.market_value,
+                market_volume = excluded.market_volume,
+                updated_at = excluded.updated_at'
+        );
+
+        db()->beginTransaction();
+        try {
+            foreach ($entries as $entry) {
+                $stmt->execute([
+                    ':symbol' => strtoupper((string) ($entry['symbol'] ?? '')),
+                    ':trade_date' => (string) ($entry['trade_date'] ?? ''),
+                    ':payload' => json_encode($entry['payload'] ?? [], JSON_THROW_ON_ERROR),
+                    ':market_value' => (float) ($entry['market_value'] ?? 0),
+                    ':market_volume' => (float) ($entry['market_volume'] ?? 0),
+                    ':updated_at' => (string) ($entry['updated_at'] ?? gmdate(DATE_ATOM)),
+                ]);
+            }
+            db()->commit();
+        } catch (Throwable $error) {
+            db()->rollBack();
+            throw $error;
+        }
+    }
+
     public function dailySnapshots(string $symbol, int $limit = 20): array
     {
         $stmt = db()->prepare(
