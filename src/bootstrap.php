@@ -134,6 +134,26 @@ function db(): PDO
         )'
     );
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS ai_analysis_cache (
+            symbol TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            context_hash TEXT NOT NULL,
+            model TEXT NOT NULL DEFAULT "",
+            payload TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(symbol, mode, context_hash)
+        )'
+    );
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS external_context_cache (
+            symbol TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+
     seed_defaults($pdo);
 
     return $pdo;
@@ -208,6 +228,15 @@ function seed_defaults(PDO $pdo): void
         'next_day_dataset_latest_file' => '',
         'next_day_dataset_latest_generated_at' => '',
         'next_day_dataset_latest_count' => '0',
+        'next_day_swing_dataset_latest_file' => '',
+        'next_day_swing_dataset_latest_generated_at' => '',
+        'next_day_swing_dataset_latest_count' => '0',
+        'next_day_fast_dataset_latest_file' => '',
+        'next_day_fast_dataset_latest_generated_at' => '',
+        'next_day_fast_dataset_latest_count' => '0',
+        'next_day_fast_v2_dataset_latest_file' => '',
+        'next_day_fast_v2_dataset_latest_generated_at' => '',
+        'next_day_fast_v2_dataset_latest_count' => '0',
         'broker_history_status' => 'idle',
         'broker_history_started_at' => '',
         'broker_history_finished_at' => '',
@@ -221,6 +250,8 @@ function seed_defaults(PDO $pdo): void
         'broker_history_meta' => '{}',
         'broker_history_cancel_requested' => '0',
         'broker_history_error_log' => '[]',
+        'gemini_api_key' => '',
+        'gemini_model' => 'gemini-2.5-flash',
     ];
 
     $stmt = $pdo->prepare('INSERT OR IGNORE INTO settings(key, value) VALUES (:key, :value)');

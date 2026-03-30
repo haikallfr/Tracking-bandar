@@ -27,11 +27,20 @@ $filters = [
 $symbols = $universe->all();
 $pid = (string) getmypid();
 $startedAt = gmdate(DATE_ATOM);
-$results = [];
-$dataset = [];
+$profiles = NextDayFilter::profiles();
+$resultsByProfile = [];
+$datasetByProfile = [];
+$matchedByProfile = [];
+$rules = [];
+
+foreach ($profiles as $profile) {
+    $resultsByProfile[$profile] = [];
+    $datasetByProfile[$profile] = [];
+    $matchedByProfile[$profile] = 0;
+    $rules[$profile] = NextDayFilter::rules($profile);
+}
+
 $errors = 0;
-$matched = 0;
-$rules = NextDayFilter::rules();
 $batchSize = 10;
 $concurrency = 8;
 
@@ -48,6 +57,7 @@ save_setting('next_day_error_log', '[]');
 save_setting('next_day_meta', json_encode([
     'filters' => $filters,
     'rules' => $rules,
+    'profiles' => $profiles,
     'batch_size' => $batchSize,
     'concurrency' => $concurrency,
 ], JSON_THROW_ON_ERROR));
@@ -77,54 +87,66 @@ foreach (array_chunk($symbols, $batchSize) as $batchIndex => $batchSymbols) {
                     $item = $radar->refine($item, $enrichment);
                 }
 
-                if (NextDayFilter::passes($item)) {
-                    $item['next_day_reasons'] = NextDayFilter::reasons($item);
-                    $results[] = $item;
-                    $dataset[] = [
-                        'symbol' => $symbol,
-                        'status' => 'passed',
-                        'score' => $item['score'] ?? 0,
-                        'score_base' => $item['score_base'] ?? ($item['score'] ?? 0),
-                        'label' => $item['label'] ?? '',
-                        'metrics' => $item['metrics'] ?? [],
-                        'reasons' => $item['next_day_reasons'] ?? [],
-                        'top_buyers' => $item['top_buyers'] ?? [],
-                        'top_sellers' => $item['top_sellers'] ?? [],
-                        'enrichment' => $item['enrichment'] ?? [],
-                        'updated_at' => $item['updated_at'] ?? gmdate(DATE_ATOM),
-                    ];
-                } else {
-                    $dataset[] = [
-                        'symbol' => $symbol,
-                        'status' => 'filtered_out',
-                        'score' => $item['score'] ?? 0,
-                        'score_base' => $item['score_base'] ?? ($item['score'] ?? 0),
-                        'label' => $item['label'] ?? '',
-                        'metrics' => $item['metrics'] ?? [],
-                        'failures' => NextDayFilter::failures($item),
-                        'top_buyers' => $item['top_buyers'] ?? [],
-                        'top_sellers' => $item['top_sellers'] ?? [],
-                        'enrichment' => $item['enrichment'] ?? [],
-                        'updated_at' => $item['updated_at'] ?? gmdate(DATE_ATOM),
-                    ];
+                foreach ($profiles as $profile) {
+                    if (NextDayFilter::passes($item, $profile)) {
+                        $profileItem = $item;
+                        $profileItem['next_day_reasons'] = NextDayFilter::reasons($item, $profile);
+                        $profileItem['next_day_profile'] = $profile;
+                        $resultsByProfile[$profile][] = $profileItem;
+                        $datasetByProfile[$profile][] = [
+                            'symbol' => $symbol,
+                            'status' => 'passed',
+                            'profile' => $profile,
+                            'score' => $item['score'] ?? 0,
+                            'score_base' => $item['score_base'] ?? ($item['score'] ?? 0),
+                            'label' => $item['label'] ?? '',
+                            'metrics' => $item['metrics'] ?? [],
+                            'reasons' => $profileItem['next_day_reasons'] ?? [],
+                            'top_buyers' => $item['top_buyers'] ?? [],
+                            'top_sellers' => $item['top_sellers'] ?? [],
+                            'enrichment' => $item['enrichment'] ?? [],
+                            'updated_at' => $item['updated_at'] ?? gmdate(DATE_ATOM),
+                        ];
+                    } else {
+                        $datasetByProfile[$profile][] = [
+                            'symbol' => $symbol,
+                            'status' => 'filtered_out',
+                            'profile' => $profile,
+                            'score' => $item['score'] ?? 0,
+                            'score_base' => $item['score_base'] ?? ($item['score'] ?? 0),
+                            'label' => $item['label'] ?? '',
+                            'metrics' => $item['metrics'] ?? [],
+                            'failures' => NextDayFilter::failures($item, $profile),
+                            'top_buyers' => $item['top_buyers'] ?? [],
+                            'top_sellers' => $item['top_sellers'] ?? [],
+                            'enrichment' => $item['enrichment'] ?? [],
+                            'updated_at' => $item['updated_at'] ?? gmdate(DATE_ATOM),
+                        ];
+                    }
                 }
             } else {
-                $dataset[] = [
-                    'symbol' => $symbol,
-                    'status' => 'skipped',
-                    'reason' => 'insufficient_market_data',
-                    'updated_at' => gmdate(DATE_ATOM),
-                ];
+                foreach ($profiles as $profile) {
+                    $datasetByProfile[$profile][] = [
+                        'symbol' => $symbol,
+                        'status' => 'skipped',
+                        'profile' => $profile,
+                        'reason' => 'insufficient_market_data',
+                        'updated_at' => gmdate(DATE_ATOM),
+                    ];
+                }
             }
         } catch (Throwable $e) {
             $errors++;
             append_worker_error('next_day_error_log', $symbol, $e);
-            $dataset[] = [
-                'symbol' => $symbol,
-                'status' => 'error',
-                'error' => $e->getMessage(),
-                'updated_at' => gmdate(DATE_ATOM),
-            ];
+            foreach ($profiles as $profile) {
+                $datasetByProfile[$profile][] = [
+                    'symbol' => $symbol,
+                    'status' => 'error',
+                    'profile' => $profile,
+                    'error' => $e->getMessage(),
+                    'updated_at' => gmdate(DATE_ATOM),
+                ];
+            }
         }
     }
 
@@ -135,27 +157,32 @@ foreach (array_chunk($symbols, $batchSize) as $batchIndex => $batchSymbols) {
     foreach ($batch['errors'] as $symbol => $message) {
         $errors++;
         append_worker_error('next_day_error_log', $symbol, new RuntimeException($message));
-        $dataset[] = [
-            'symbol' => $symbol,
-            'status' => 'error',
-            'error' => $message,
-            'updated_at' => gmdate(DATE_ATOM),
-        ];
+        foreach ($profiles as $profile) {
+            $datasetByProfile[$profile][] = [
+                'symbol' => $symbol,
+                'status' => 'error',
+                'profile' => $profile,
+                'error' => $message,
+                'updated_at' => gmdate(DATE_ATOM),
+            ];
+        }
     }
 
-    usort($results, static function (array $left, array $right): int {
-        $leftAcceleration = (float) (($left['metrics'] ?? [])['turnover_acceleration'] ?? 0);
-        $rightAcceleration = (float) (($right['metrics'] ?? [])['turnover_acceleration'] ?? 0);
+    foreach ($profiles as $profile) {
+        usort($resultsByProfile[$profile], static function (array $left, array $right): int {
+            $leftAcceleration = (float) (($left['metrics'] ?? [])['turnover_acceleration'] ?? 0);
+            $rightAcceleration = (float) (($right['metrics'] ?? [])['turnover_acceleration'] ?? 0);
 
-        return ($right['score'] <=> $left['score'])
-            ?: ($rightAcceleration <=> $leftAcceleration)
-            ?: strcmp((string) ($left['symbol'] ?? ''), (string) ($right['symbol'] ?? ''));
-    });
-    $matched = count($results);
+            return ($right['score'] <=> $left['score'])
+                ?: ($rightAcceleration <=> $leftAcceleration)
+                ?: strcmp((string) ($left['symbol'] ?? ''), (string) ($right['symbol'] ?? ''));
+        });
+        $matchedByProfile[$profile] = count($resultsByProfile[$profile]);
+    }
 
     $scanned = min(count($symbols), ($batchIndex + 1) * $batchSize);
     save_setting('next_day_scanned', (string) $scanned);
-    save_setting('next_day_matched', (string) $matched);
+    save_setting('next_day_matched', (string) $matchedByProfile['swing']);
     save_setting('next_day_errors', (string) $errors);
 
     if ($scanned < count($symbols)) {
@@ -164,27 +191,58 @@ foreach (array_chunk($symbols, $batchSize) as $batchIndex => $batchSymbols) {
 }
 
 $finishedAt = gmdate(DATE_ATOM);
-save_setting('next_day_results', json_encode($results, JSON_THROW_ON_ERROR));
+save_setting('next_day_results', json_encode($resultsByProfile['swing'], JSON_THROW_ON_ERROR));
 
-$datasetPayload = [
-    'run_type' => 'next_day_full_scan',
-    'generated_at' => $finishedAt,
-    'started_at' => $startedAt,
-    'filters' => $filters,
-    'rules' => $rules,
-    'summary' => [
-        'scanned' => count($dataset),
-        'passed' => $matched,
-        'errors' => $errors,
-        'universe_total' => count($symbols),
-    ],
-    'items' => $dataset,
-];
-$datasetFile = NEXT_DAY_RUN_DIR . '/next-day-' . gmdate('Ymd-His') . '.json';
-file_put_contents($datasetFile, json_encode($datasetPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
-save_setting('next_day_dataset_latest_file', $datasetFile);
-save_setting('next_day_dataset_latest_generated_at', $finishedAt);
-save_setting('next_day_dataset_latest_count', (string) count($dataset));
+$timestamp = gmdate('Ymd-His');
+
+foreach ($profiles as $profile) {
+    $datasetPayload = [
+        'run_type' => 'next_day_full_scan',
+        'profile' => $profile,
+        'generated_at' => $finishedAt,
+        'started_at' => $startedAt,
+        'filters' => $filters,
+        'rules' => $rules[$profile],
+        'summary' => [
+            'scanned' => count($datasetByProfile[$profile]),
+            'passed' => $matchedByProfile[$profile],
+            'errors' => $errors,
+            'universe_total' => count($symbols),
+        ],
+        'items' => $datasetByProfile[$profile],
+    ];
+    $fileProfile = match ($profile) {
+        'fast' => 'fast-v1',
+        'fast_v2' => 'fast-v2',
+        default => 'swing',
+    };
+
+    $datasetFile = NEXT_DAY_RUN_DIR . '/next-day-' . $fileProfile . '-' . $timestamp . '.json';
+    file_put_contents($datasetFile, json_encode($datasetPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+
+    if ($profile === 'swing') {
+        save_setting('next_day_dataset_latest_file', $datasetFile);
+        save_setting('next_day_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        save_setting('next_day_swing_dataset_latest_file', $datasetFile);
+        save_setting('next_day_swing_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_swing_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        continue;
+    }
+
+    if ($profile === 'fast') {
+        save_setting('next_day_fast_dataset_latest_file', $datasetFile);
+        save_setting('next_day_fast_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_fast_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        continue;
+    }
+
+    if ($profile === 'fast_v2') {
+        save_setting('next_day_fast_v2_dataset_latest_file', $datasetFile);
+        save_setting('next_day_fast_v2_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_fast_v2_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+    }
+}
 
 save_setting('next_day_status', 'idle');
 save_setting('next_day_finished_at', $finishedAt);

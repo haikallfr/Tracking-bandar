@@ -13,9 +13,17 @@ if (!in_array($mode, ['high', 'basic'], true)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radar Saham</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem('tracking_bandar_theme');
+            const dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.dataset.theme = 'dark';
+        })();
+    </script>
     <link rel="stylesheet" href="./assets/app.css">
 </head>
 <body>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Aktifkan mode gelap" title="Mode gelap">☾</button>
     <div class="wrap">
         <section class="hero centered">
             <span class="eyebrow">Radar Saham</span>
@@ -49,6 +57,8 @@ if (!in_array($mode, ['high', 'basic'], true)) {
         const initialMode = <?= json_encode($mode, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         const resultEl = document.getElementById('result');
         const messageEl = document.getElementById('message');
+        let currentSymbol = initialSymbol;
+        let currentMode = initialMode;
 
         function escapeHtml(text) {
             return String(text)
@@ -82,6 +92,113 @@ if (!in_array($mode, ['high', 'basic'], true)) {
 
         function metric(label, value) {
             return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`;
+        }
+
+        function renderAnalysisList(items) {
+            return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+        }
+
+        function renderSystemPanel(symbol, mode) {
+            return `
+                <section class="card panel ai-panel">
+                    <div class="ai-panel-head">
+                        <div>
+                            <span class="eyebrow">Analisa Sistem</span>
+                            <h3 class="ai-title">Analisa internal ${escapeHtml(symbol)}</h3>
+                            <div class="muted">Sistem membaca data radar, broker flow, dan historikal yang kita punya lalu menyusun keputusan otomatis.</div>
+                        </div>
+                        <div class="actions ai-actions">
+                            <button class="button" type="button" id="ai-run-btn">Analisa Sistem</button>
+                            <button class="button secondary" type="button" id="ai-refresh-btn">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="notice" id="ai-message">Klik Analisa Sistem untuk membaca ${escapeHtml(symbol)} pada mode ${escapeHtml(mode === 'basic' ? 'analisis sederhana' : 'analisis saham')}.</div>
+                    <div id="ai-result"></div>
+                </section>
+            `;
+        }
+
+        function bindAiPanel(symbol, mode) {
+            const runBtn = document.getElementById('ai-run-btn');
+            const refreshBtn = document.getElementById('ai-refresh-btn');
+            const aiMessageEl = document.getElementById('ai-message');
+            const aiResultEl = document.getElementById('ai-result');
+
+            async function loadAi(force = false) {
+                aiMessageEl.textContent = force ? `Memperbarui analisa AI ${symbol}...` : `Menganalisa ${symbol} dengan AI...`;
+                runBtn.disabled = true;
+                refreshBtn.disabled = true;
+
+                try {
+                        const response = await fetch(`./api/system-analysis.php?symbol=${encodeURIComponent(symbol)}&mode=${encodeURIComponent(mode)}`, {
+                            cache: 'no-store'
+                        });
+                        const data = await response.json();
+
+                        if (!data.ok) {
+                            throw new Error(data.message || 'Gagal memuat analisa sistem.');
+                        }
+
+                        const analysis = data.analysis?.analysis || {};
+                        const external = data.analysis?.external_context || {};
+                        const externalSignals = external.signals || {};
+                        const news = Array.isArray(external.news) ? external.news : [];
+
+                        aiResultEl.innerHTML = `
+                            <article class="card item ai-result-card">
+                                <div class="item-head">
+                                    <div>
+                                        <h2>${escapeHtml(symbol)}</h2>
+                                        <div class="muted">${escapeHtml(data.analysis?.company?.company_name || '')}</div>
+                                    </div>
+                                    <div class="summary-meta">
+                                        <div class="badge">${escapeHtml(analysis.setup || 'Analisa Sistem')}</div>
+                                    </div>
+                                </div>
+                                <div class="item-body">
+                                    <div class="reasons">
+                                        <strong>Ringkasan</strong>
+                                        ${renderAnalysisList(analysis.summary || [])}
+                                    </div>
+                                    <div class="reasons">
+                                        <strong>Yang Sedang Terjadi</strong>
+                                        ${renderAnalysisList(analysis.happening || [])}
+                                    </div>
+                                    <div class="reasons">
+                                        <strong>Risiko Utama</strong>
+                                        ${renderAnalysisList(analysis.risks || [])}
+                                    </div>
+                                    <div class="reasons">
+                                        <strong>Keputusan</strong>
+                                        <ul><li>${escapeHtml(analysis.decision || 'Layak Pantau')}</li></ul>
+                                    </div>
+                                    <div class="reasons">
+                                        <strong>Yang Perlu Dipantau</strong>
+                                        ${renderAnalysisList(analysis.next_watch || [])}
+                                    </div>
+                                    ${(externalSignals.summary || []).length || news.length ? `
+                                        <div class="reasons">
+                                            <strong>Konteks Luar</strong>
+                                            ${renderAnalysisList(externalSignals.summary || [])}
+                                            ${news.length ? `<ul>${news.slice(0, 6).map((item) => `<li><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a></li>`).join('')}</ul>` : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </article>
+                        `;
+
+                        aiMessageEl.textContent = `Analisa sistem ${symbol} berhasil dibuat.`;
+                    } catch (error) {
+                        aiMessageEl.textContent = error.message || 'Gagal memuat analisa sistem.';
+                        aiResultEl.innerHTML = '<article class="card item"><div class="muted">Analisa sistem belum tersedia.</div></article>';
+                    } finally {
+                        runBtn.disabled = false;
+                        refreshBtn.disabled = false;
+                }
+            }
+
+            runBtn?.addEventListener('click', () => loadAi(false));
+            refreshBtn?.addEventListener('click', () => loadAi(true));
         }
 
         function renderItem(item, mode) {
@@ -177,7 +294,10 @@ if (!in_array($mode, ['high', 'basic'], true)) {
                 return;
             }
 
-            resultEl.innerHTML = renderItem(data.item, data.mode || mode);
+            currentSymbol = symbol;
+            currentMode = data.mode || mode;
+            resultEl.innerHTML = renderItem(data.item, currentMode) + renderSystemPanel(symbol, currentMode);
+            bindAiPanel(symbol, currentMode);
             messageEl.textContent = `${symbol} berhasil dimuat pada mode ${data.mode === 'basic' ? 'radar dasar' : 'probabilitas tinggi'}.`;
         }
 
@@ -188,5 +308,6 @@ if (!in_array($mode, ['high', 'basic'], true)) {
             });
         }
     </script>
+    <script src="./assets/theme.js"></script>
 </body>
 </html>

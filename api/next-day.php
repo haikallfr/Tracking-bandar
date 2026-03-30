@@ -11,8 +11,60 @@ require_once __DIR__ . '/../src/HistoricalRepository.php';
 require_once __DIR__ . '/../src/CandidateEnricher.php';
 require_once __DIR__ . '/../src/NextDayHistoryRepository.php';
 
-function next_day_payload(): array
+function next_day_profile_meta(string $profile): array
 {
+    $profile = NextDayFilter::normalizeProfile($profile);
+
+    return match ($profile) {
+        'fast' => [
+            'profile' => 'fast',
+            'label' => 'Fast V1',
+            'latest_file' => (string) setting('next_day_fast_dataset_latest_file', ''),
+            'generated_at' => (string) setting('next_day_fast_dataset_latest_generated_at', ''),
+            'count' => (int) setting('next_day_fast_dataset_latest_count', '0'),
+        ],
+        'fast_v2' => [
+            'profile' => 'fast_v2',
+            'label' => 'Fast V2',
+            'latest_file' => (string) setting('next_day_fast_v2_dataset_latest_file', ''),
+            'generated_at' => (string) setting('next_day_fast_v2_dataset_latest_generated_at', ''),
+            'count' => (int) setting('next_day_fast_v2_dataset_latest_count', '0'),
+        ],
+        default => [
+            'profile' => 'swing',
+            'label' => 'Swing',
+            'latest_file' => (string) setting('next_day_swing_dataset_latest_file', ''),
+            'generated_at' => (string) setting('next_day_swing_dataset_latest_generated_at', ''),
+            'count' => (int) setting('next_day_swing_dataset_latest_count', '0'),
+        ],
+    };
+}
+
+function next_day_dataset_items(string $profile): array
+{
+    $profileMeta = next_day_profile_meta($profile);
+    $file = $profileMeta['latest_file'];
+
+    if ($file !== '' && is_file($file)) {
+        $payload = json_decode((string) file_get_contents($file), true);
+        $items = $payload['items'] ?? [];
+        if (is_array($items)) {
+            return array_values(array_filter($items, static fn (array $item): bool => ($item['status'] ?? '') === 'passed'));
+        }
+    }
+
+    if ($profileMeta['profile'] === 'swing') {
+        $items = json_decode((string) setting('next_day_results', '[]'), true);
+        return is_array($items) ? $items : [];
+    }
+
+    return [];
+}
+
+function next_day_payload(string $profile = 'swing'): array
+{
+    $profileMeta = next_day_profile_meta($profile);
+    $activeProfile = $profileMeta['profile'];
     $status = (string) setting('next_day_status', 'idle');
     $pid = (int) setting('next_day_pid', '0');
     if ($status === 'running' && $pid > 0 && !process_alive($pid)) {
@@ -23,24 +75,45 @@ function next_day_payload(): array
 
     $meta = json_decode((string) setting('next_day_meta', '{}'), true);
     $meta = is_array($meta) ? $meta : [];
-    $items = json_decode((string) setting('next_day_results', '[]'), true);
-    $items = is_array($items) ? $items : [];
+    $items = next_day_dataset_items($activeProfile);
 
     return [
         'ok' => true,
+        'active_profile' => $activeProfile,
+        'active_profile_label' => $profileMeta['label'],
         'token_configured' => setting('stockbit_token', '') !== '',
         'source' => [
-            'generated_at' => (string) setting('next_day_finished_at', ''),
+            'generated_at' => $profileMeta['generated_at'],
             'count' => count($items),
         ],
         'dataset' => [
             'latest_file' => (string) setting('next_day_dataset_latest_file', ''),
             'generated_at' => (string) setting('next_day_dataset_latest_generated_at', ''),
             'count' => (int) setting('next_day_dataset_latest_count', '0'),
+            'swing' => [
+                'latest_file' => (string) setting('next_day_swing_dataset_latest_file', ''),
+                'generated_at' => (string) setting('next_day_swing_dataset_latest_generated_at', ''),
+                'count' => (int) setting('next_day_swing_dataset_latest_count', '0'),
+            ],
+            'fast' => [
+                'latest_file' => (string) setting('next_day_fast_dataset_latest_file', ''),
+                'generated_at' => (string) setting('next_day_fast_dataset_latest_generated_at', ''),
+                'count' => (int) setting('next_day_fast_dataset_latest_count', '0'),
+            ],
+            'fast_v2' => [
+                'latest_file' => (string) setting('next_day_fast_v2_dataset_latest_file', ''),
+                'generated_at' => (string) setting('next_day_fast_v2_dataset_latest_generated_at', ''),
+                'count' => (int) setting('next_day_fast_v2_dataset_latest_count', '0'),
+            ],
         ],
-        'rules' => $meta['rules'] ?? NextDayFilter::rules(),
+        'rules' => $meta['rules'][$activeProfile] ?? NextDayFilter::rules($activeProfile),
+        'profiles' => $meta['rules'] ?? [
+            'swing' => NextDayFilter::rules('swing'),
+            'fast' => NextDayFilter::rules('fast'),
+            'fast_v2' => NextDayFilter::rules('fast_v2'),
+        ],
         'radar' => [
-            'generated_at' => (string) setting('next_day_finished_at', ''),
+            'generated_at' => $profileMeta['generated_at'],
             'count' => count($items),
             'items' => $items,
         ],
@@ -64,6 +137,7 @@ function next_day_payload(): array
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['symbol'])) {
     $symbol = strtoupper(trim((string) ($_GET['symbol'] ?? '')));
+    $profile = NextDayFilter::normalizeProfile((string) ($_GET['profile'] ?? 'swing'));
     if ($symbol === '') {
         json_response(['ok' => false, 'message' => 'Simbol wajib diisi.'], 422);
     }
@@ -95,17 +169,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['symbol'])) {
             $item = $radar->refine($item, $enrichment);
         }
 
-        $passed = NextDayFilter::passes($item);
+        $passed = NextDayFilter::passes($item, $profile);
         if ($passed) {
-            $item['next_day_reasons'] = NextDayFilter::reasons($item);
+            $item['next_day_reasons'] = NextDayFilter::reasons($item, $profile);
         } else {
-            $item['next_day_failures'] = NextDayFilter::failures($item);
+            $item['next_day_failures'] = NextDayFilter::failures($item, $profile);
         }
+        $item['next_day_profile'] = $profile;
 
         $history->save($symbol, $passed, (float) ($item['score'] ?? 0), [
             'symbol' => $symbol,
             'passed' => $passed,
-            'rules' => NextDayFilter::rules(),
+            'profile' => $profile,
+            'rules' => NextDayFilter::rules($profile),
             'item' => $item,
         ]);
 
@@ -116,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['symbol'])) {
             'passed' => $passed,
             'history_saved' => true,
             'history_count' => $history->count(),
-            'rules' => NextDayFilter::rules(),
+            'rules' => NextDayFilter::rules($profile),
             'item' => $item,
         ]);
     } catch (Throwable $e) {
@@ -125,7 +201,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['symbol'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    json_response(next_day_payload());
+    $profile = NextDayFilter::normalizeProfile((string) ($_GET['profile'] ?? 'swing'));
+    json_response(next_day_payload($profile));
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

@@ -4,9 +4,21 @@ declare(strict_types=1);
 
 final class NextDayFilter
 {
-    public static function rules(): array
+    public static function normalizeProfile(string $profile): string
     {
-        return [
+        $profile = strtolower(trim($profile));
+
+        return match ($profile) {
+            'fast', 'fast_v1', 'v1' => 'fast',
+            'fast_v2', 'v2' => 'fast_v2',
+            default => 'swing',
+        };
+    }
+
+    public static function rules(string $profile = 'swing'): array
+    {
+        $profile = self::normalizeProfile($profile);
+        $base = [
             'score_min' => 95,
             'dist_days_max' => 1,
             'clean_ratio_min' => 65,
@@ -20,18 +32,61 @@ final class NextDayFilter
             'breakout_pct_max' => 4,
             'extension_pct_max' => 6.5,
         ];
+
+        if ($profile === 'fast') {
+            return array_merge($base, [
+                'profile' => 'fast',
+                'profile_label' => 'Fast Trade V1',
+                'score_min' => 90,
+                'turnover_acceleration_min' => 1.2,
+                'intraday_close_vs_open_pct_min' => 2.0,
+                'intraday_range_pct_max' => 20.0,
+                'breakout_pct_min' => 1,
+                'breakout_pct_max' => 15,
+                'extension_pct_max' => 15.0,
+            ]);
+        }
+
+        if ($profile === 'fast_v2') {
+            return array_merge($base, [
+                'profile' => 'fast_v2',
+                'profile_label' => 'Fast Trade V2',
+                'score_min' => 75,
+                'dist_days_max' => 2,
+                'clean_ratio_min' => 15,
+                'repeat_ratio_min' => 16,
+                'acc_ratio_min' => 8,
+                'dominance_gap_min' => 0,
+                'turnover_acceleration_min' => 0.25,
+                'intraday_close_vs_open_pct_min' => -1.0,
+                'intraday_range_pct_max' => 25.0,
+                'breakout_pct_min' => -50,
+                'breakout_pct_max' => 2,
+                'extension_pct_max' => 5.0,
+            ]);
+        }
+
+        return array_merge($base, [
+            'profile' => 'swing',
+            'profile_label' => 'Swing',
+        ]);
     }
 
-    public static function filter(array $items): array
+    public static function profiles(): array
+    {
+        return ['swing', 'fast', 'fast_v2'];
+    }
+
+    public static function filter(array $items, string $profile = 'swing'): array
     {
         $filtered = [];
 
         foreach ($items as $item) {
-            if (!self::passes($item)) {
+            if (!self::passes($item, $profile)) {
                 continue;
             }
 
-            $item['next_day_reasons'] = self::reasons($item);
+            $item['next_day_reasons'] = self::reasons($item, $profile);
             $filtered[] = $item;
         }
 
@@ -47,9 +102,9 @@ final class NextDayFilter
         return $filtered;
     }
 
-    public static function passes(array $item): bool
+    public static function passes(array $item, string $profile = 'swing'): bool
     {
-        $rules = self::rules();
+        $rules = self::rules($profile);
         $metrics = $item['metrics'] ?? [];
         $enrichment = $item['enrichment'] ?? [];
 
@@ -89,12 +144,14 @@ final class NextDayFilter
         return true;
     }
 
-    public static function reasons(array $item): array
+    public static function reasons(array $item, string $profile = 'swing'): array
     {
         $metrics = $item['metrics'] ?? [];
         $enrichment = $item['enrichment'] ?? [];
+        $rules = self::rules($profile);
 
         return [
+            sprintf('Profil %s', $rules['profile_label']),
             sprintf('Score %s dengan clean accumulation %s%%', number_format((float) ($item['score'] ?? 0), 1, ',', '.'), number_format((float) ($metrics['clean_ratio'] ?? 0), 2, ',', '.')),
             sprintf('Repeat broker %s%%, acc ratio %s%%, distribusi %d hari', number_format((float) ($metrics['repeat_ratio'] ?? 0), 2, ',', '.'), number_format((float) ($metrics['acc_ratio'] ?? 0), 2, ',', '.'), (int) ($enrichment['dist_days'] ?? 0)),
             sprintf('Dominance gap %s%% dan turnover accel %sx', number_format((float) ($metrics['dominance_gap'] ?? 0), 2, ',', '.'), number_format((float) ($metrics['turnover_acceleration'] ?? 0), 2, ',', '.')),
@@ -103,9 +160,9 @@ final class NextDayFilter
         ];
     }
 
-    public static function failures(array $item): array
+    public static function failures(array $item, string $profile = 'swing'): array
     {
-        $rules = self::rules();
+        $rules = self::rules($profile);
         $metrics = $item['metrics'] ?? [];
         $enrichment = $item['enrichment'] ?? [];
         $failures = [];

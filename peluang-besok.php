@@ -1,5 +1,14 @@
 <?php
 declare(strict_types=1);
+
+require_once __DIR__ . '/src/NextDayFilter.php';
+
+$initialProfile = NextDayFilter::normalizeProfile((string) ($_GET['profile'] ?? 'swing'));
+$initialProfileLabel = match ($initialProfile) {
+    'fast' => 'Fast V1',
+    'fast_v2' => 'Fast V2',
+    default => 'Swing',
+};
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -7,10 +16,18 @@ declare(strict_types=1);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Peluang Besok</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem('tracking_bandar_theme');
+            const dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.dataset.theme = 'dark';
+        })();
+    </script>
     <link rel="stylesheet" href="./assets/app.css">
 </head>
 <body>
-    <div class="wrap">
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Aktifkan mode gelap" title="Mode gelap">☾</button>
+    <div class="wrap" data-next-day-profile="<?= htmlspecialchars($initialProfile, ENT_QUOTES, 'UTF-8') ?>" data-next-day-profile-label="<?= htmlspecialchars($initialProfileLabel, ENT_QUOTES, 'UTF-8') ?>">
         <section class="hero centered">
             <span class="eyebrow">Peluang Besok</span>
             <h1>Peluang Besok</h1>
@@ -21,6 +38,13 @@ declare(strict_types=1);
                 <a class="link icon-button" href="./index.php" title="Kembali ke Dashboard Utama" aria-label="Kembali ke Dashboard Utama">⌂<span class="sr-only">Kembali ke Dashboard Utama</span></a>
                 <a class="link" href="./tracker-berulang.php">Analisis Saham</a>
                 <a class="link" href="./radar-potensial.php">High Convection</a>
+                <details class="menu-dropdown">
+                    <summary class="link menu-trigger">Fast</summary>
+                    <div class="menu-list">
+                        <a class="menu-item<?= $initialProfile === 'fast' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast">Fast V1</a>
+                        <a class="menu-item<?= $initialProfile === 'fast_v2' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast_v2">Fast V2</a>
+                    </div>
+                </details>
                 <form class="search-form" id="single-screen-form">
                     <input type="text" id="single-symbol" name="symbol" placeholder="Cari simbol, mis. BBCA" autocomplete="off">
                     <button class="button icon-button" type="submit" title="Cari Saham" aria-label="Cari Saham">⌕<span class="sr-only">Cari Saham</span></button>
@@ -46,6 +70,9 @@ declare(strict_types=1);
         const itemsEl = document.getElementById('items');
         const messageEl = document.getElementById('message');
         const state = { running: false, pollHandle: null };
+        const wrapEl = document.querySelector('.wrap');
+        const activeProfile = wrapEl?.dataset.nextDayProfile || 'swing';
+        const activeProfileLabel = wrapEl?.dataset.nextDayProfileLabel || 'Swing';
 
         function escapeHtml(text) {
             return String(text)
@@ -85,6 +112,88 @@ declare(strict_types=1);
                     ${escapeHtml(row.broker_type || '-')} • Val ${formatCompactNumber(row.value)} • Freq ${escapeHtml(String(row.freq || 0))}
                 </li>
             `).join('')}</ul>`;
+        }
+
+        function renderSystemInline(symbol) {
+            return `
+                <div class="ai-inline" data-ai-symbol="${escapeHtml(symbol)}" data-ai-mode="high">
+                    <div class="ai-inline-actions">
+                        <button class="button secondary ai-inline-btn" type="button">Analisa Sistem</button>
+                    </div>
+                    <div class="notice ai-inline-message">Sistem akan membaca data radar internal dan menyusun keputusan otomatis tanpa AI eksternal.</div>
+                    <div class="ai-inline-result"></div>
+                </div>
+            `;
+        }
+
+        function renderAnalysisList(items) {
+            return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+        }
+
+        function bindInlineAi(root) {
+            root.querySelectorAll('.ai-inline').forEach((block) => {
+                if (block.dataset.bound === '1') return;
+                block.dataset.bound = '1';
+
+                const symbol = block.dataset.aiSymbol || '';
+                const mode = block.dataset.aiMode || 'high';
+                const button = block.querySelector('.ai-inline-btn');
+                const message = block.querySelector('.ai-inline-message');
+                const result = block.querySelector('.ai-inline-result');
+
+                button?.addEventListener('click', async () => {
+                    if (!symbol) return;
+                    button.disabled = true;
+                    message.textContent = `Menyusun analisa sistem untuk ${symbol}...`;
+
+                    try {
+                        const response = await fetch(`./api/system-analysis.php?symbol=${encodeURIComponent(symbol)}&mode=${encodeURIComponent(mode)}`, { cache: 'no-store' });
+                        const data = await response.json();
+                        if (!data.ok) {
+                            throw new Error(data.message || 'Gagal memuat analisa sistem.');
+                        }
+
+                        const analysis = data.analysis?.analysis || {};
+                        const external = data.analysis?.external_context || {};
+                        const externalSignals = external.signals || {};
+                        const news = Array.isArray(external.news) ? external.news : [];
+                        result.innerHTML = `
+                            <div class="enrichment ai-inline-card">
+                                <strong>Analisa Sistem</strong>
+                                <div class="mini muted">${escapeHtml(analysis.setup || 'Netral')} • ${escapeHtml(analysis.bias || 'Netral')} • ${escapeHtml(analysis.decision || 'Layak Pantau')}</div>
+                                <div class="reasons">
+                                    <strong>Ringkasan</strong>
+                                    ${renderAnalysisList(analysis.summary || [])}
+                                </div>
+                                <div class="reasons">
+                                    <strong>Yang Sedang Terjadi</strong>
+                                    ${renderAnalysisList(analysis.happening || [])}
+                                </div>
+                                <div class="reasons">
+                                    <strong>Risiko Utama</strong>
+                                    ${renderAnalysisList(analysis.risks || [])}
+                                </div>
+                                <div class="reasons">
+                                    <strong>Yang Perlu Dipantau</strong>
+                                    ${renderAnalysisList(analysis.next_watch || [])}
+                                </div>
+                                ${(externalSignals.summary || []).length || news.length ? `
+                                    <div class="reasons">
+                                        <strong>Konteks Luar</strong>
+                                        ${renderAnalysisList(externalSignals.summary || [])}
+                                        ${news.length ? `<ul>${news.slice(0, 5).map((item) => `<li><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a></li>`).join('')}</ul>` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                        message.textContent = `Analisa sistem ${symbol} berhasil dibuat.`;
+                    } catch (error) {
+                        message.textContent = error.message || 'Gagal memuat analisa sistem.';
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
         }
 
         function renderItem(item) {
@@ -130,6 +239,7 @@ declare(strict_types=1);
                                 ${renderBrokerList(item.top_sellers || [], 'sell')}
                             </div>
                         </div>
+                        ${renderSystemInline(item.symbol)}
                     </div>
                 </details>
             `;
@@ -140,6 +250,7 @@ declare(strict_types=1);
             const rules = data.rules || {};
             const meta = data.meta || {};
             const summary = meta.summary || {};
+            const profileLabel = data.active_profile_label || activeProfileLabel;
 
             state.running = meta.status === 'running';
             startBtn.disabled = state.running;
@@ -150,7 +261,7 @@ declare(strict_types=1);
 
             statsEl.innerHTML = [
                 statCard('Status', state.running ? 'Running' : 'Idle', meta.current_symbol ? `Sedang memproses ${meta.current_symbol}` : 'Worker berjalan terpisah dari website.'),
-                statCard('Progress', `${summary.scanned || 0}/${meta.total || 0}`, `Lolos filter peluang besok: ${summary.matched || 0} saham.`),
+                statCard('Progress', `${summary.scanned || 0}/${meta.total || 0}`, `Lolos filter ${profileLabel}: ${data.radar?.count || 0} saham.`),
                 statCard('Errors', String(summary.errors || 0), 'Kalau tinggi, biasanya token atau request live bermasalah.'),
                 statCard('Turnover', `>= ${rules.turnover_acceleration_min ?? 0.6}x`, 'Percepatan turnover harus hidup.'),
                 statCard('Dataset', String(data.dataset?.count || 0), 'Jumlah item yang tersimpan penuh untuk testing.')
@@ -162,22 +273,24 @@ declare(strict_types=1);
                     messageEl.textContent = `Scan selesai tetapi ${summary.errors || 0} request gagal. Kemungkinan token Stockbit sudah tidak valid untuk batch scan. Impor token lagi lalu jalankan ulang.`;
                 } else {
                     messageEl.textContent = state.running
-                        ? `Scan peluang besok sedang berjalan. Progress ${summary.scanned || 0}/${meta.total || 0}.`
-                        : 'Belum ada saham yang cukup kuat untuk shortlist besok.';
+                        ? `Scan ${profileLabel} sedang berjalan. Progress ${summary.scanned || 0}/${meta.total || 0}.`
+                        : `Belum ada saham yang cukup kuat untuk shortlist ${profileLabel}.`;
                 }
                 managePolling();
                 return;
             }
 
             itemsEl.innerHTML = items.map(renderItem).join('');
+            window.bindAnimatedDetails?.(itemsEl);
+            bindInlineAi(itemsEl);
             messageEl.textContent = state.running
-                ? `Scan peluang besok sedang berjalan. Progress ${summary.scanned || 0}/${meta.total || 0}. Hasil tersimpan terakhir tetap tampil.`
-                : `${items.length} saham lolos shortlist peluang besok dari full market scan terakhir. Dataset testing tersimpan: ${data.dataset?.count || 0} item.`;
+                ? `Scan ${profileLabel} sedang berjalan. Progress ${summary.scanned || 0}/${meta.total || 0}. Hasil tersimpan terakhir tetap tampil.`
+                : `${items.length} saham lolos shortlist ${profileLabel} dari full market scan terakhir. Dataset testing tersimpan: ${data.dataset?.count || 0} item.`;
             managePolling();
         }
 
         async function loadRadar() {
-            const response = await fetch('./api/next-day.php', { cache: 'no-store' });
+            const response = await fetch(`./api/next-day.php?profile=${encodeURIComponent(activeProfile)}`, { cache: 'no-store' });
             const data = await response.json();
             if (!data.ok) {
                 throw new Error(data.message || 'Gagal memuat peluang besok.');
@@ -186,14 +299,14 @@ declare(strict_types=1);
         }
 
         async function loadSingleSymbol(symbol) {
-            const response = await fetch(`./api/next-day.php?symbol=${encodeURIComponent(symbol)}`, { cache: 'no-store' });
+            const response = await fetch(`./api/next-day.php?profile=${encodeURIComponent(activeProfile)}&symbol=${encodeURIComponent(symbol)}`, { cache: 'no-store' });
             const data = await response.json();
             if (!data.ok) {
                 throw new Error(data.message || 'Gagal screen simbol peluang besok.');
             }
 
             statsEl.innerHTML = [
-                statCard('Mode', 'Single Symbol', `Screen cepat untuk ${data.symbol || symbol}.`),
+                statCard('Mode', profileLabelFromData(data), `Screen cepat untuk ${data.symbol || symbol}.`),
                 statCard('Status', data.passed ? 'Lolos' : 'Belum Lolos', data.passed ? 'Simbol ini masuk shortlist peluang besok.' : 'Masih ada syarat yang belum terpenuhi.'),
                 statCard('Score', String(data.item?.score || 0), 'Score dasar setelah refinement historikal.'),
                 statCard('Turnover', `${data.item?.metrics?.turnover_acceleration || 0}x`, 'Percepatan turnover simbol ini.'),
@@ -201,9 +314,15 @@ declare(strict_types=1);
             ].join('');
 
             itemsEl.innerHTML = renderItem(data.item);
+            window.bindAnimatedDetails?.(itemsEl);
+            bindInlineAi(itemsEl);
             messageEl.textContent = data.passed
-                ? `${data.symbol} lolos filter peluang besok dan hasilnya sudah tersimpan.`
-                : `${data.symbol} sudah discren cepat, belum lolos filter peluang besok, dan hasilnya sudah tersimpan untuk testing.`;
+                ? `${data.symbol} lolos filter ${profileLabelFromData(data)} dan hasilnya sudah tersimpan.`
+                : `${data.symbol} sudah discren cepat, belum lolos filter ${profileLabelFromData(data)}, dan hasilnya sudah tersimpan untuk testing.`;
+        }
+
+        function profileLabelFromData(data) {
+            return data?.rules?.profile_label || data?.active_profile_label || activeProfileLabel;
         }
 
         async function startRadar() {
@@ -286,5 +405,7 @@ declare(strict_types=1);
             messageEl.textContent = error.message || 'Gagal memuat peluang besok.';
         });
     </script>
+    <script src="./assets/details-animate.js"></script>
+    <script src="./assets/theme.js"></script>
 </body>
 </html>

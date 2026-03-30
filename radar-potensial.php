@@ -7,9 +7,17 @@ declare(strict_types=1);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radar Sangat Potensial</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem('tracking_bandar_theme');
+            const dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.dataset.theme = 'dark';
+        })();
+    </script>
     <link rel="stylesheet" href="./assets/app.css">
 </head>
 <body>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Aktifkan mode gelap" title="Mode gelap">☾</button>
     <div class="wrap">
         <section class="hero centered">
             <span class="eyebrow">High Convection</span>
@@ -80,6 +88,88 @@ declare(strict_types=1);
             `).join('')}</ul>`;
         }
 
+        function renderSystemInline(symbol) {
+            return `
+                <div class="ai-inline" data-ai-symbol="${escapeHtml(symbol)}" data-ai-mode="high">
+                    <div class="ai-inline-actions">
+                        <button class="button secondary ai-inline-btn" type="button">Analisa Sistem</button>
+                    </div>
+                    <div class="notice ai-inline-message">Sistem akan membaca data radar internal dan menyusun keputusan otomatis tanpa AI eksternal.</div>
+                    <div class="ai-inline-result"></div>
+                </div>
+            `;
+        }
+
+        function renderAnalysisList(items) {
+            return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+        }
+
+        function bindInlineAi(root) {
+            root.querySelectorAll('.ai-inline').forEach((block) => {
+                if (block.dataset.bound === '1') return;
+                block.dataset.bound = '1';
+
+                const symbol = block.dataset.aiSymbol || '';
+                const mode = block.dataset.aiMode || 'high';
+                const button = block.querySelector('.ai-inline-btn');
+                const message = block.querySelector('.ai-inline-message');
+                const result = block.querySelector('.ai-inline-result');
+
+                button?.addEventListener('click', async () => {
+                    if (!symbol) return;
+                    button.disabled = true;
+                    message.textContent = `Menyusun analisa sistem untuk ${symbol}...`;
+
+                    try {
+                        const response = await fetch(`./api/system-analysis.php?symbol=${encodeURIComponent(symbol)}&mode=${encodeURIComponent(mode)}`, { cache: 'no-store' });
+                        const data = await response.json();
+                        if (!data.ok) {
+                            throw new Error(data.message || 'Gagal memuat analisa sistem.');
+                        }
+
+                        const analysis = data.analysis?.analysis || {};
+                        const external = data.analysis?.external_context || {};
+                        const externalSignals = external.signals || {};
+                        const news = Array.isArray(external.news) ? external.news : [];
+                        result.innerHTML = `
+                            <div class="enrichment ai-inline-card">
+                                <strong>Analisa Sistem</strong>
+                                <div class="mini muted">${escapeHtml(analysis.setup || 'Netral')} • ${escapeHtml(analysis.bias || 'Netral')} • ${escapeHtml(analysis.decision || 'Layak Pantau')}</div>
+                                <div class="reasons">
+                                    <strong>Ringkasan</strong>
+                                    ${renderAnalysisList(analysis.summary || [])}
+                                </div>
+                                <div class="reasons">
+                                    <strong>Yang Sedang Terjadi</strong>
+                                    ${renderAnalysisList(analysis.happening || [])}
+                                </div>
+                                <div class="reasons">
+                                    <strong>Risiko Utama</strong>
+                                    ${renderAnalysisList(analysis.risks || [])}
+                                </div>
+                                <div class="reasons">
+                                    <strong>Yang Perlu Dipantau</strong>
+                                    ${renderAnalysisList(analysis.next_watch || [])}
+                                </div>
+                                ${(externalSignals.summary || []).length || news.length ? `
+                                    <div class="reasons">
+                                        <strong>Konteks Luar</strong>
+                                        ${renderAnalysisList(externalSignals.summary || [])}
+                                        ${news.length ? `<ul>${news.slice(0, 5).map((item) => `<li><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a></li>`).join('')}</ul>` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                        message.textContent = `Analisa sistem ${symbol} berhasil dibuat.`;
+                    } catch (error) {
+                        message.textContent = error.message || 'Gagal memuat analisa sistem.';
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
+        }
+
         function renderItem(item) {
             const metrics = item.metrics || {};
             return `
@@ -120,6 +210,7 @@ declare(strict_types=1);
                                 ${renderBrokerList(item.top_sellers || [], 'sell')}
                             </div>
                         </div>
+                        ${renderSystemInline(item.symbol)}
                     </div>
                 </details>
             `;
@@ -144,6 +235,8 @@ declare(strict_types=1);
             }
 
             itemsEl.innerHTML = items.map(renderItem).join('');
+            window.bindAnimatedDetails?.(itemsEl);
+            bindInlineAi(itemsEl);
             messageEl.textContent = `Filter ketat selesai. ${items.length} saham lolos dari ${data.source?.count || 0} kandidat radar probabilitas tinggi.`;
         }
 
@@ -167,5 +260,7 @@ declare(strict_types=1);
             messageEl.textContent = error.message || 'Gagal memuat radar sangat potensial.';
         });
     </script>
+    <script src="./assets/details-animate.js"></script>
+    <script src="./assets/theme.js"></script>
 </body>
 </html>

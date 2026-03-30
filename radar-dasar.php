@@ -7,9 +7,17 @@ declare(strict_types=1);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radar Dasar Sederhana Full Market</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem('tracking_bandar_theme');
+            const dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.dataset.theme = 'dark';
+        })();
+    </script>
     <link rel="stylesheet" href="./assets/app.css">
 </head>
 <body>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Aktifkan mode gelap" title="Mode gelap">☾</button>
     <div class="wrap">
         <section class="hero centered">
             <span class="eyebrow">Analisis Saham Sederhana</span>
@@ -118,6 +126,7 @@ declare(strict_types=1);
                 itemsEl.innerHTML = '<article class="card item"><div class="muted">Belum ada hasil tersimpan untuk radar dasar full market.</div></article>';
             } else {
                 itemsEl.innerHTML = items.map(renderItem).join('');
+                window.bindAnimatedDetails?.(itemsEl);
             }
 
             if (state.running) {
@@ -204,5 +213,7 @@ declare(strict_types=1);
             messageEl.textContent = error.message || 'Gagal memuat radar dasar.';
         });
     </script>
+    <script src="./assets/details-animate.js"></script>
+    <script src="./assets/theme.js"></script>
 </body>
 </html>

@@ -7,9 +7,17 @@ declare(strict_types=1);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Broker Summary Otomatis</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem('tracking_bandar_theme');
+            const dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.dataset.theme = 'dark';
+        })();
+    </script>
     <link rel="stylesheet" href="./assets/app.css">
 </head>
 <body>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Aktifkan mode gelap" title="Mode gelap">☾</button>
     <div class="wrap">
         <section class="hero">
             <h1 class="title">Broker Summary</h1>
@@ -50,10 +58,17 @@ declare(strict_types=1);
                         <div class="shortcut-row" id="global-shortcuts"></div>
                     </div>
                     <div>
-                        <span class="toolbar-label">Geser Tanggal</span>
-                        <div class="date-nav">
-                            <button type="button" class="secondary icon-button" id="date-prev-btn" title="Tanggal sebelumnya" aria-label="Tanggal sebelumnya">←</button>
-                            <button type="button" class="secondary icon-button" id="date-next-btn" title="Tanggal selanjutnya" aria-label="Tanggal selanjutnya">→</button>
+                        <div class="date-nav toolbar-control-row">
+                            <button type="button" class="secondary icon-button" id="date-prev-btn" title="Tanggal sebelumnya" aria-label="Tanggal sebelumnya">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M14.5 6.5 9 12l5.5 5.5" />
+                                </svg>
+                            </button>
+                            <button type="button" class="secondary icon-button" id="date-next-btn" title="Tanggal selanjutnya" aria-label="Tanggal selanjutnya">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M9.5 6.5 15 12l-5.5 5.5" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     <div>
@@ -754,5 +769,6 @@ declare(strict_types=1);
         showImportMessage();
         loadDashboard().catch(error => setMessage(error.message, true));
     </script>
+    <script src="./assets/theme.js"></script>
 </body>
 </html>
