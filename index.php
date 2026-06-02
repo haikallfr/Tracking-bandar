@@ -25,7 +25,10 @@ declare(strict_types=1);
                 <a class="nav-link" href="./tracker-berulang.php">Analisis Saham</a>
                 <a class="nav-link" href="./radar-dasar.php">Analisis Saham Sederhana</a>
                 <a class="nav-link" href="./radar-potensial.php">High Convection</a>
-                <a class="nav-link" href="./peluang-besok.php">Peluang Besok</a>
+                <a class="nav-link" href="./peluang-besok.php">Day Trade</a>
+                <a class="nav-link" href="./ksei-radar.php">KSEI Radar</a>
+                <a class="nav-link" href="./cio-swing.php">CIO Swing</a>
+                <a class="nav-link" href="./sector-scanner.php">Sector Scanner</a>
             </div>
         </section>
 
@@ -117,6 +120,8 @@ declare(strict_types=1);
             currentItem: null,
             period: 'BROKER_SUMMARY_PERIOD_LATEST',
             currentBrokerCode: '',
+            currentBrokerRangeFrom: '',
+            currentBrokerRangeTo: '',
             currentBrokerHistory: null,
             brokerHistoryPollHandle: null,
         };
@@ -201,6 +206,21 @@ declare(strict_types=1);
             if (value.includes('lokal')) return 'type-color-lokal';
             if (value.includes('pemerintah')) return 'type-color-pemerintah';
             return '';
+        }
+
+        function brokerWindowKey(window) {
+            return `${window.from || ''}|${window.to || ''}`;
+        }
+
+        function formatIsoDate(dateValue) {
+            const raw = String(dateValue || '');
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '-';
+            const [year, month, day] = raw.split('-').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+            });
         }
 
         function currentFilters() {
@@ -308,22 +328,85 @@ declare(strict_types=1);
                     </div>
                 `;
             } else if (brokerCode && result) {
-                const netClass = Number(result.net_value || 0) >= 0 ? 'buy' : 'sell';
+                const windows = Array.isArray(result.hit_windows) ? result.hit_windows : [];
+                const rangeFrom = String(state.currentBrokerRangeFrom || '');
+                const rangeTo = String(state.currentBrokerRangeTo || '');
+                const activeWindows = windows.filter((window) => {
+                    const windowFrom = String(window.from || '');
+                    const windowTo = String(window.to || '');
+                    if (rangeFrom && windowTo < rangeFrom) return false;
+                    if (rangeTo && windowFrom > rangeTo) return false;
+                    return true;
+                });
+                const useFiltered = rangeFrom !== '' || rangeTo !== '';
+                const sourceWindows = useFiltered ? activeWindows : windows;
+                const totals = sourceWindows.reduce((carry, window) => {
+                    carry.buy_value += Number(window.buy_value || 0);
+                    carry.buy_lot += Number(window.buy_lot || 0);
+                    carry.sell_value += Number(window.sell_value || 0);
+                    carry.sell_lot += Number(window.sell_lot || 0);
+                    carry.buy_avg_weight += Number(window.buy_avg || 0) * Number(window.buy_lot || 0);
+                    carry.sell_avg_weight += Number(window.sell_avg || 0) * Number(window.sell_lot || 0);
+                    return carry;
+                }, {
+                    buy_value: 0,
+                    buy_lot: 0,
+                    sell_value: 0,
+                    sell_lot: 0,
+                    buy_avg_weight: 0,
+                    sell_avg_weight: 0,
+                });
+                const netLot = totals.buy_lot - totals.sell_lot;
+                const snapshot = {
+                    broker_code: result.broker_code || brokerCode,
+                    broker_type: result.broker_type || '',
+                    net_value: totals.buy_value - totals.sell_value,
+                    net_lot: netLot,
+                    display_avg: netLot >= 0
+                        ? (totals.buy_lot > 0 ? (totals.buy_avg_weight / totals.buy_lot) : 0)
+                        : (totals.sell_lot > 0 ? (totals.sell_avg_weight / totals.sell_lot) : 0),
+                    buy_lot: totals.buy_lot,
+                    sell_lot: totals.sell_lot,
+                    range: {
+                        from: sourceWindows.at(-1)?.from || result.range?.from || '',
+                        to: sourceWindows[0]?.to || result.range?.to || '',
+                    },
+                    windows_with_hits: sourceWindows.length,
+                };
+                const netClass = Number(snapshot.net_value || 0) >= 0 ? 'buy' : 'sell';
                 const avgLabel = netClass === 'buy' ? 'Buy Avg' : 'Sell Avg';
+                const selectedLabel = useFiltered
+                    ? `${formatIsoDate(rangeFrom || snapshot.range.from)} s/d ${formatIsoDate(rangeTo || snapshot.range.to)}`
+                    : 'Semua periode aktif';
+                const windowFilter = windows.length ? `
+                    <div class="broker-window-filter broker-window-range">
+                        <label class="toolbar-label">Rentang Tanggal Aktivitas</label>
+                        <div class="broker-range-inputs">
+                            <input id="broker-range-from" type="date" value="${escapeHtml(rangeFrom)}">
+                            <input id="broker-range-to" type="date" value="${escapeHtml(rangeTo)}">
+                            <button type="button" class="secondary" id="broker-range-reset">Reset</button>
+                        </div>
+                    </div>
+                ` : '';
+                const emptyNote = useFiltered && sourceWindows.length === 0
+                    ? '<div class="notice">Tidak ada aktivitas broker pada rentang tanggal tersebut berdasarkan histori yang sudah discan.</div>'
+                    : '';
                 body = `
+                    ${windowFilter}
+                    ${emptyNote}
                     <div class="broker-focus-card ${netClass}">
-                        <div class="broker-focus-code">${escapeHtml(result.broker_code || brokerCode)}</div>
-                        <div class="broker-focus-metric">${formatCompactNumber(result.net_value || 0)}</div>
-                        <div class="broker-focus-metric">${formatCompactNumber(result.net_lot || 0)}</div>
-                        <div class="broker-focus-metric">${formatPrice(result.display_avg || 0)}</div>
+                        <div class="broker-focus-code">${escapeHtml(snapshot.broker_code || brokerCode)}</div>
+                        <div class="broker-focus-metric">${formatCompactNumber(snapshot.net_value || 0)}</div>
+                        <div class="broker-focus-metric">${formatCompactNumber(snapshot.net_lot || 0)}</div>
+                        <div class="broker-focus-metric">${formatPrice(snapshot.display_avg || 0)}</div>
                     </div>
                     <div class="broker-focus-meta">
                         <span class="badge ${netClass === 'buy' ? 'buy-badge' : 'sell-badge'}">${netClass === 'buy' ? 'Net Buy' : 'Net Sell'}</span>
-                        <span>${escapeHtml(result.broker_type || '-')}</span>
-                        <span>${avgLabel} ${formatPrice(result.display_avg || 0)}</span>
-                        <span>Buy ${formatCompactNumber(result.buy_lot || 0)} lot</span>
-                        <span>Sell ${formatCompactNumber(result.sell_lot || 0)} lot</span>
-                        <span>${escapeHtml(result.range?.from || '-')} s/d ${escapeHtml(result.range?.to || '-')}</span>
+                        <span>${escapeHtml(snapshot.broker_type || '-')}</span>
+                        <span>${avgLabel} ${formatPrice(snapshot.display_avg || 0)}</span>
+                        <span>Buy ${formatCompactNumber(snapshot.buy_lot || 0)} lot</span>
+                        <span>Sell ${formatCompactNumber(snapshot.sell_lot || 0)} lot</span>
+                        <span>${escapeHtml(selectedLabel)}</span>
                         <span>${escapeHtml(String(result.windows_with_hits || 0))} window ada aktivitas</span>
                     </div>
                 `;
@@ -610,6 +693,8 @@ declare(strict_types=1);
             resetBrokerHistoryPoll();
             if (state.currentSymbol !== symbol) {
                 state.currentBrokerCode = '';
+                state.currentBrokerRangeFrom = '';
+                state.currentBrokerRangeTo = '';
                 state.currentBrokerHistory = null;
             }
             state.currentSymbol = symbol;
@@ -653,6 +738,8 @@ declare(strict_types=1);
             const brokerInput = document.getElementById('broker-code-input');
             if (!brokerInput || !state.currentItem) return;
             state.currentBrokerCode = brokerInput.value.trim().toUpperCase();
+            state.currentBrokerRangeFrom = '';
+            state.currentBrokerRangeTo = '';
             state.currentBrokerHistory = null;
             renderSingleItem(state.currentItem);
 
@@ -718,6 +805,36 @@ declare(strict_types=1);
             if (event.target instanceof HTMLElement && event.target.id === 'broker-code-input' && event.key === 'Enter') {
                 event.preventDefault();
                 applyBrokerLookup().catch(error => setMessage(error.message, true));
+            }
+        });
+
+        document.addEventListener('change', (event) => {
+            if (!(event.target instanceof HTMLElement)) {
+                return;
+            }
+
+            if (event.target.id === 'broker-range-from') {
+                state.currentBrokerRangeFrom = event.target.value || '';
+            }
+
+            if (event.target.id === 'broker-range-to') {
+                state.currentBrokerRangeTo = event.target.value || '';
+            }
+
+            if (event.target.id === 'broker-range-from' || event.target.id === 'broker-range-to') {
+                if (state.currentItem) {
+                    renderSingleItem(state.currentItem);
+                }
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            const resetButton = event.target.closest('#broker-range-reset');
+            if (!resetButton) return;
+            state.currentBrokerRangeFrom = '';
+            state.currentBrokerRangeTo = '';
+            if (state.currentItem) {
+                renderSingleItem(state.currentItem);
             }
         });
 

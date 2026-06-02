@@ -64,6 +64,8 @@ Tujuan sistem ini bukan menebak harga dengan pasti, tetapi menaikkan probabilita
 - company_name
 - listing_board
 - listed_shares
+- sector
+- subsector
 
 ### float_reference
 - symbol
@@ -107,3 +109,11 @@ Urutan paling rasional:
 3. Tambahkan feature engine untuk breakout / volume anomaly / extension
 4. Tambahkan filter free float dan aksi korporasi
 5. Gabungkan jadi scoring probabilitas yang lebih matang
+
+## Catatan Praktis Saat Ini
+
+- `storage/imports-listed-companies.csv` yang sudah ada saat ini belum memuat `sector` dan `subsector`.
+- Untuk mengisi sektor resmi, sistem sekarang sudah mendukung import tambahan melalui:
+  - `php scripts/import-official-csv.php sector_map /path/file.csv`
+- Template sederhananya ada di:
+  - `storage/import-sector-map-template.csv`

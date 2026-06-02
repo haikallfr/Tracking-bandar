@@ -27,7 +27,10 @@ declare(strict_types=1);
         <section class="card panel">
             <div class="actions actions-toolbar">
                 <a class="link icon-button" href="./index.php" title="Kembali ke Dashboard Utama" aria-label="Kembali ke Dashboard Utama">⌂<span class="sr-only">Kembali ke Dashboard Utama</span></a>
-                <a class="link" href="./peluang-besok.php">Peluang Besok</a>
+                <a class="link" href="./peluang-besok.php">Day Trade</a>
+                <a class="link" href="./ksei-radar.php">KSEI Radar</a>
+                <a class="link" href="./cio-swing.php">CIO Swing</a>
+                <a class="link" href="./sector-scanner.php">Sector Scanner</a>
                 <form class="search-form" action="./radar-saham.php" method="get">
                     <input type="text" name="symbol" placeholder="Cari simbol, mis. BBCA" autocomplete="off">
                     <input type="hidden" name="mode" value="high">

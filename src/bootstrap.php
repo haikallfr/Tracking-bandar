@@ -100,6 +100,28 @@ function db(): PDO
     );
 
     $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS ownership_positions (
+            symbol TEXT NOT NULL,
+            owner_name TEXT NOT NULL,
+            effective_date TEXT NOT NULL,
+            issuer_name TEXT NOT NULL DEFAULT "",
+            owner_type TEXT NOT NULL DEFAULT "",
+            local_foreign TEXT NOT NULL DEFAULT "",
+            nationality TEXT NOT NULL DEFAULT "",
+            domicile TEXT NOT NULL DEFAULT "",
+            holdings_scripless REAL NOT NULL DEFAULT 0,
+            holdings_scrip REAL NOT NULL DEFAULT 0,
+            total_holding_shares REAL NOT NULL DEFAULT 0,
+            ownership_pct REAL NOT NULL DEFAULT 0,
+            source_url TEXT NOT NULL DEFAULT "",
+            source_file TEXT NOT NULL DEFAULT "",
+            published_at TEXT NOT NULL DEFAULT "",
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(symbol, owner_name, effective_date)
+        )'
+    );
+
+    $pdo->exec(
         'CREATE TABLE IF NOT EXISTS corporate_action_reference (
             symbol TEXT NOT NULL,
             action_type TEXT NOT NULL,
@@ -237,6 +259,21 @@ function seed_defaults(PDO $pdo): void
         'next_day_fast_v2_dataset_latest_file' => '',
         'next_day_fast_v2_dataset_latest_generated_at' => '',
         'next_day_fast_v2_dataset_latest_count' => '0',
+        'next_day_fast_v3_dataset_latest_file' => '',
+        'next_day_fast_v3_dataset_latest_generated_at' => '',
+        'next_day_fast_v3_dataset_latest_count' => '0',
+        'next_day_fast_v4_dataset_latest_file' => '',
+        'next_day_fast_v4_dataset_latest_generated_at' => '',
+        'next_day_fast_v4_dataset_latest_count' => '0',
+        'next_day_fast_v5_dataset_latest_file' => '',
+        'next_day_fast_v5_dataset_latest_generated_at' => '',
+        'next_day_fast_v5_dataset_latest_count' => '0',
+        'next_day_fast_v6_dataset_latest_file' => '',
+        'next_day_fast_v6_dataset_latest_generated_at' => '',
+        'next_day_fast_v6_dataset_latest_count' => '0',
+        'next_day_fast_v7_dataset_latest_file' => '',
+        'next_day_fast_v7_dataset_latest_generated_at' => '',
+        'next_day_fast_v7_dataset_latest_count' => '0',
         'broker_history_status' => 'idle',
         'broker_history_started_at' => '',
         'broker_history_finished_at' => '',

@@ -100,6 +100,31 @@ final class ReferenceRepository
         ]);
     }
 
+    public function saveSectorClassification(
+        string $symbol,
+        string $sector,
+        string $subsector,
+        string $source
+    ): void {
+        $stmt = db()->prepare(
+            'INSERT INTO symbol_reference(symbol, company_name, listing_board, listed_shares, sector, subsector, source, updated_at)
+             VALUES (:symbol, "", "", 0, :sector, :subsector, :source, :updated_at)
+             ON CONFLICT(symbol) DO UPDATE SET
+                sector = excluded.sector,
+                subsector = excluded.subsector,
+                source = excluded.source,
+                updated_at = excluded.updated_at'
+        );
+
+        $stmt->execute([
+            ':symbol' => strtoupper($symbol),
+            ':sector' => $sector,
+            ':subsector' => $subsector,
+            ':source' => $source,
+            ':updated_at' => gmdate(DATE_ATOM),
+        ]);
+    }
+
     public function counts(): array
     {
         return [

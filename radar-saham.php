@@ -37,6 +37,9 @@ if (!in_array($mode, ['high', 'basic'], true)) {
                 <a class="link" href="./tracker-berulang.php">Analisis Saham</a>
                 <a class="link" href="./radar-dasar.php">Analisis Saham Sederhana</a>
                 <a class="link" href="./radar-potensial.php">High Convection</a>
+                <a class="link" href="./ksei-radar.php">KSEI Radar</a>
+                <a class="link" href="./cio-swing.php">CIO Swing</a>
+                <a class="link" href="./sector-scanner.php">Sector Scanner</a>
                 <form class="search-form" action="./radar-saham.php" method="get">
                     <input type="text" name="symbol" placeholder="Cari simbol, mis. BBCA" value="<?= htmlspecialchars($symbol, ENT_QUOTES) ?>" autocomplete="off">
                     <select name="mode">

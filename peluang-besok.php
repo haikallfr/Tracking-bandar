@@ -7,6 +7,11 @@ $initialProfile = NextDayFilter::normalizeProfile((string) ($_GET['profile'] ?? 
 $initialProfileLabel = match ($initialProfile) {
     'fast' => 'Fast V1',
     'fast_v2' => 'Fast V2',
+    'fast_v3' => 'Fast V3',
+    'fast_v4' => 'Fast V4',
+    'fast_v5' => 'Fast V5',
+    'fast_v6' => 'Fast V6',
+    'fast_v7' => 'Fast V7',
     default => 'Swing',
 };
 ?>
@@ -15,7 +20,7 @@ $initialProfileLabel = match ($initialProfile) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peluang Besok</title>
+    <title>Day Trade</title>
     <script>
         (() => {
             const saved = localStorage.getItem('tracking_bandar_theme');
@@ -29,8 +34,8 @@ $initialProfileLabel = match ($initialProfile) {
     <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Aktifkan mode gelap" title="Mode gelap">☾</button>
     <div class="wrap" data-next-day-profile="<?= htmlspecialchars($initialProfile, ENT_QUOTES, 'UTF-8') ?>" data-next-day-profile-label="<?= htmlspecialchars($initialProfileLabel, ENT_QUOTES, 'UTF-8') ?>">
         <section class="hero centered">
-            <span class="eyebrow">Peluang Besok</span>
-            <h1>Peluang Besok</h1>
+            <span class="eyebrow">Day Trade</span>
+            <h1>Day Trade</h1>
         </section>
 
         <section class="card panel">
@@ -38,22 +43,34 @@ $initialProfileLabel = match ($initialProfile) {
                 <a class="link icon-button" href="./index.php" title="Kembali ke Dashboard Utama" aria-label="Kembali ke Dashboard Utama">⌂<span class="sr-only">Kembali ke Dashboard Utama</span></a>
                 <a class="link" href="./tracker-berulang.php">Analisis Saham</a>
                 <a class="link" href="./radar-potensial.php">High Convection</a>
+                <a class="link" href="./ksei-radar.php">KSEI Radar</a>
+                <a class="link" href="./cio-swing.php">CIO Swing</a>
+                <a class="link" href="./sector-scanner.php">Sector Scanner</a>
                 <details class="menu-dropdown">
-                    <summary class="link menu-trigger">Fast</summary>
+                    <summary class="link menu-trigger">
+                        <span class="menu-trigger-label">Mode</span>
+                        <span class="menu-trigger-value"><?= htmlspecialchars($initialProfileLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                    </summary>
                     <div class="menu-list">
+                        <a class="menu-item<?= $initialProfile === 'swing' ? ' active' : '' ?>" href="./peluang-besok.php?profile=swing">Swing</a>
                         <a class="menu-item<?= $initialProfile === 'fast' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast">Fast V1</a>
                         <a class="menu-item<?= $initialProfile === 'fast_v2' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast_v2">Fast V2</a>
+                        <a class="menu-item<?= $initialProfile === 'fast_v3' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast_v3">Fast V3</a>
+                        <a class="menu-item<?= $initialProfile === 'fast_v4' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast_v4">Fast V4</a>
+                        <a class="menu-item<?= $initialProfile === 'fast_v5' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast_v5">Fast V5</a>
+                        <a class="menu-item<?= $initialProfile === 'fast_v6' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast_v6">Fast V6</a>
+                        <a class="menu-item<?= $initialProfile === 'fast_v7' ? ' active' : '' ?>" href="./peluang-besok.php?profile=fast_v7">Fast V7</a>
                     </div>
                 </details>
                 <form class="search-form" id="single-screen-form">
                     <input type="text" id="single-symbol" name="symbol" placeholder="Cari simbol, mis. BBCA" autocomplete="off">
                     <button class="button icon-button" type="submit" title="Cari Saham" aria-label="Cari Saham">⌕<span class="sr-only">Cari Saham</span></button>
                 </form>
-                <button class="button secondary icon-button" type="button" id="load-btn" title="Muat Hasil Peluang Besok" aria-label="Muat Hasil Peluang Besok">🗂<span class="sr-only">Muat Hasil Peluang Besok</span></button>
-                <button class="button icon-button" type="button" id="start-btn" title="Jalankan Scan Peluang Besok" aria-label="Jalankan Scan Peluang Besok">▶<span class="sr-only">Jalankan Scan Peluang Besok</span></button>
-                <button class="button secondary icon-button" type="button" id="cancel-btn" title="Cancel Scan Peluang Besok" aria-label="Cancel Scan Peluang Besok">✕<span class="sr-only">Cancel Scan Peluang Besok</span></button>
+                <button class="button secondary icon-button" type="button" id="load-btn" title="Muat Hasil Day Trade" aria-label="Muat Hasil Day Trade">🗂<span class="sr-only">Muat Hasil Day Trade</span></button>
+                <button class="button icon-button" type="button" id="start-btn" title="Jalankan Scan Day Trade" aria-label="Jalankan Scan Day Trade">▶<span class="sr-only">Jalankan Scan Day Trade</span></button>
+                <button class="button secondary icon-button" type="button" id="cancel-btn" title="Cancel Scan Day Trade" aria-label="Cancel Scan Day Trade">✕<span class="sr-only">Cancel Scan Day Trade</span></button>
             </div>
-            <div class="notice" id="message">Klik muat hasil tersimpan atau jalankan scan full market khusus peluang besok.</div>
+            <div class="notice" id="message">Klik muat hasil tersimpan atau jalankan scan full market khusus Day Trade.</div>
         </section>
 
         <section class="stats" id="stats"></section>
@@ -255,8 +272,8 @@ $initialProfileLabel = match ($initialProfile) {
             state.running = meta.status === 'running';
             startBtn.disabled = state.running;
             startBtn.innerHTML = state.running
-                ? '◌<span class="sr-only">Scan Peluang Besok Sedang Berjalan</span>'
-                : '▶<span class="sr-only">Jalankan Scan Peluang Besok</span>';
+                ? '◌<span class="sr-only">Scan Day Trade Sedang Berjalan</span>'
+                : '▶<span class="sr-only">Jalankan Scan Day Trade</span>';
             cancelBtn.disabled = !state.running;
 
             statsEl.innerHTML = [
@@ -268,7 +285,7 @@ $initialProfileLabel = match ($initialProfile) {
             ].join('');
 
             if (!items.length) {
-                itemsEl.innerHTML = '<article class="card item"><div class="muted">Belum ada saham yang lolos filter peluang besok dari hasil analisis yang tersimpan.</div></article>';
+                itemsEl.innerHTML = '<article class="card item"><div class="muted">Belum ada saham yang lolos filter Day Trade dari hasil analisis yang tersimpan.</div></article>';
                 if ((summary.errors || 0) > 0) {
                     messageEl.textContent = `Scan selesai tetapi ${summary.errors || 0} request gagal. Kemungkinan token Stockbit sudah tidak valid untuk batch scan. Impor token lagi lalu jalankan ulang.`;
                 } else {
@@ -293,7 +310,7 @@ $initialProfileLabel = match ($initialProfile) {
             const response = await fetch(`./api/next-day.php?profile=${encodeURIComponent(activeProfile)}`, { cache: 'no-store' });
             const data = await response.json();
             if (!data.ok) {
-                throw new Error(data.message || 'Gagal memuat peluang besok.');
+                throw new Error(data.message || 'Gagal memuat Day Trade.');
             }
             render(data);
         }
@@ -302,12 +319,12 @@ $initialProfileLabel = match ($initialProfile) {
             const response = await fetch(`./api/next-day.php?profile=${encodeURIComponent(activeProfile)}&symbol=${encodeURIComponent(symbol)}`, { cache: 'no-store' });
             const data = await response.json();
             if (!data.ok) {
-                throw new Error(data.message || 'Gagal screen simbol peluang besok.');
+                throw new Error(data.message || 'Gagal screen simbol Day Trade.');
             }
 
             statsEl.innerHTML = [
                 statCard('Mode', profileLabelFromData(data), `Screen cepat untuk ${data.symbol || symbol}.`),
-                statCard('Status', data.passed ? 'Lolos' : 'Belum Lolos', data.passed ? 'Simbol ini masuk shortlist peluang besok.' : 'Masih ada syarat yang belum terpenuhi.'),
+                statCard('Status', data.passed ? 'Lolos' : 'Belum Lolos', data.passed ? 'Simbol ini masuk shortlist Day Trade.' : 'Masih ada syarat yang belum terpenuhi.'),
                 statCard('Score', String(data.item?.score || 0), 'Score dasar setelah refinement historikal.'),
                 statCard('Turnover', `${data.item?.metrics?.turnover_acceleration || 0}x`, 'Percepatan turnover simbol ini.'),
                 statCard('Riwayat', String(data.history_count || 0), 'Jumlah hasil search yang sudah tersimpan untuk testing.')
@@ -333,7 +350,7 @@ $initialProfileLabel = match ($initialProfile) {
             });
             const data = await response.json();
             if (!data.ok) {
-                throw new Error(data.message || 'Gagal memulai peluang besok.');
+                throw new Error(data.message || 'Gagal memulai Day Trade.');
             }
             render(data);
         }
@@ -346,7 +363,7 @@ $initialProfileLabel = match ($initialProfile) {
             });
             const data = await response.json();
             if (!data.ok) {
-                throw new Error(data.message || 'Gagal cancel peluang besok.');
+                throw new Error(data.message || 'Gagal cancel Day Trade.');
             }
             render(data);
         }
@@ -363,27 +380,27 @@ $initialProfileLabel = match ($initialProfile) {
 
             state.pollHandle = setInterval(() => {
                 loadRadar().catch((error) => {
-                    messageEl.textContent = error.message || 'Gagal memuat peluang besok.';
+                    messageEl.textContent = error.message || 'Gagal memuat Day Trade.';
                 });
             }, 3000);
         }
 
         loadBtn.addEventListener('click', () => {
-            messageEl.textContent = 'Memuat shortlist peluang besok...';
+            messageEl.textContent = 'Memuat shortlist Day Trade...';
             loadRadar().catch((error) => {
-                messageEl.textContent = error.message || 'Gagal memuat peluang besok.';
+                messageEl.textContent = error.message || 'Gagal memuat Day Trade.';
             });
         });
 
         startBtn.addEventListener('click', () => {
             startRadar().catch((error) => {
-                messageEl.textContent = error.message || 'Gagal memulai peluang besok.';
+                messageEl.textContent = error.message || 'Gagal memulai Day Trade.';
             });
         });
 
         cancelBtn.addEventListener('click', () => {
             cancelRadar().catch((error) => {
-                messageEl.textContent = error.message || 'Gagal cancel peluang besok.';
+                messageEl.textContent = error.message || 'Gagal cancel Day Trade.';
             });
         });
 
@@ -397,12 +414,12 @@ $initialProfileLabel = match ($initialProfile) {
 
             messageEl.textContent = `Screen cepat ${symbol}...`;
             loadSingleSymbol(symbol).catch((error) => {
-                messageEl.textContent = error.message || 'Gagal screen simbol peluang besok.';
+                messageEl.textContent = error.message || 'Gagal screen simbol Day Trade.';
             });
         });
 
         loadRadar().catch((error) => {
-            messageEl.textContent = error.message || 'Gagal memuat peluang besok.';
+            messageEl.textContent = error.message || 'Gagal memuat Day Trade.';
         });
     </script>
     <script src="./assets/details-animate.js"></script>

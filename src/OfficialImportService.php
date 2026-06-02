@@ -91,6 +91,32 @@ final class OfficialImportService
         return $count;
     }
 
+    public function importSectorMapCsv(string $path, string $source = 'sector_map_csv'): int
+    {
+        $rows = $this->readCsv($path);
+        $count = 0;
+
+        foreach ($rows as $row) {
+            $symbol = strtoupper(trim((string) ($row['symbol'] ?? $row['code'] ?? '')));
+            $sector = trim((string) ($row['sector'] ?? ''));
+            $subsector = trim((string) ($row['subsector'] ?? $row['sub_sector'] ?? ''));
+
+            if ($symbol === '' || $sector === '') {
+                continue;
+            }
+
+            $this->repository->saveSectorClassification(
+                $symbol,
+                $sector,
+                $subsector,
+                $source
+            );
+            $count++;
+        }
+
+        return $count;
+    }
+
     private function readCsv(string $path): array
     {
         if (!is_file($path)) {

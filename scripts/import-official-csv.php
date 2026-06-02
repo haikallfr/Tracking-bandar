@@ -13,6 +13,7 @@ $extra = $argv[3] ?? '';
 if ($type === '' || $path === '') {
     fwrite(STDERR, "Usage:\n");
     fwrite(STDERR, "  php scripts/import-official-csv.php listed_companies /path/file.csv\n");
+    fwrite(STDERR, "  php scripts/import-official-csv.php sector_map /path/file.csv\n");
     fwrite(STDERR, "  php scripts/import-official-csv.php ownership /path/file.csv 2026-03-31\n");
     fwrite(STDERR, "  php scripts/import-official-csv.php corporate_actions /path/file.csv\n");
     exit(1);
@@ -24,6 +25,11 @@ switch ($type) {
     case 'listed_companies':
         $count = $service->importListedCompaniesCsv($path, 'official_listed_companies_csv');
         echo "Imported {$count} listed company rows.\n";
+        break;
+
+    case 'sector_map':
+        $count = $service->importSectorMapCsv($path, 'manual_sector_map_csv');
+        echo "Imported {$count} sector map rows.\n";
         break;
 
     case 'ownership':

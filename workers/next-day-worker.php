@@ -214,6 +214,11 @@ foreach ($profiles as $profile) {
     $fileProfile = match ($profile) {
         'fast' => 'fast-v1',
         'fast_v2' => 'fast-v2',
+        'fast_v3' => 'fast-v3',
+        'fast_v4' => 'fast-v4',
+        'fast_v5' => 'fast-v5',
+        'fast_v6' => 'fast-v6',
+        'fast_v7' => 'fast-v7',
         default => 'swing',
     };
 
@@ -241,6 +246,41 @@ foreach ($profiles as $profile) {
         save_setting('next_day_fast_v2_dataset_latest_file', $datasetFile);
         save_setting('next_day_fast_v2_dataset_latest_generated_at', $finishedAt);
         save_setting('next_day_fast_v2_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        continue;
+    }
+
+    if ($profile === 'fast_v3') {
+        save_setting('next_day_fast_v3_dataset_latest_file', $datasetFile);
+        save_setting('next_day_fast_v3_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_fast_v3_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        continue;
+    }
+
+    if ($profile === 'fast_v4') {
+        save_setting('next_day_fast_v4_dataset_latest_file', $datasetFile);
+        save_setting('next_day_fast_v4_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_fast_v4_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        continue;
+    }
+
+    if ($profile === 'fast_v5') {
+        save_setting('next_day_fast_v5_dataset_latest_file', $datasetFile);
+        save_setting('next_day_fast_v5_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_fast_v5_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        continue;
+    }
+
+    if ($profile === 'fast_v6') {
+        save_setting('next_day_fast_v6_dataset_latest_file', $datasetFile);
+        save_setting('next_day_fast_v6_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_fast_v6_dataset_latest_count', (string) count($datasetByProfile[$profile]));
+        continue;
+    }
+
+    if ($profile === 'fast_v7') {
+        save_setting('next_day_fast_v7_dataset_latest_file', $datasetFile);
+        save_setting('next_day_fast_v7_dataset_latest_generated_at', $finishedAt);
+        save_setting('next_day_fast_v7_dataset_latest_count', (string) count($datasetByProfile[$profile]));
     }
 }
 
