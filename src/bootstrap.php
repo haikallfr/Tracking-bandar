@@ -157,18 +157,6 @@ function db(): PDO
     );
 
     $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS ai_analysis_cache (
-            symbol TEXT NOT NULL,
-            mode TEXT NOT NULL,
-            context_hash TEXT NOT NULL,
-            model TEXT NOT NULL DEFAULT "",
-            payload TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            PRIMARY KEY(symbol, mode, context_hash)
-        )'
-    );
-
-    $pdo->exec(
         'CREATE TABLE IF NOT EXISTS external_context_cache (
             symbol TEXT PRIMARY KEY,
             payload TEXT NOT NULL,
@@ -287,8 +275,6 @@ function seed_defaults(PDO $pdo): void
         'broker_history_meta' => '{}',
         'broker_history_cancel_requested' => '0',
         'broker_history_error_log' => '[]',
-        'gemini_api_key' => '',
-        'gemini_model' => 'gemini-2.5-flash',
     ];
 
     $stmt = $pdo->prepare('INSERT OR IGNORE INTO settings(key, value) VALUES (:key, :value)');

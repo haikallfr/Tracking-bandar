@@ -1229,16 +1229,6 @@ details.item[open] .item-summary .tap-hint {
     margin-top: 16px;
 }
 
-.ai-analysis-copy p {
-    margin: 10px 0 0;
-    line-height: 1.7;
-}
-
-.ai-analysis-copy strong {
-    display: block;
-    margin-bottom: 6px;
-}
-
 .reasons ul,
 .brokers ul {
     margin: 0;
